@@ -2,13 +2,16 @@ import React, { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useAuthStore } from '../store/authStore';
+import { useThemeStore } from '../store/themeStore';
 
 const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
 export default function RootLayout() {
   const { setUser, setLoading } = useAuthStore();
+  const { initializeTheme, theme, isDarkMode } = useThemeStore();
 
   useEffect(() => {
+    initializeTheme();
     checkExistingSession();
   }, []);
 
@@ -35,13 +38,13 @@ export default function RootLayout() {
 
   return (
     <>
-      <StatusBar style="light" />
+      <StatusBar style={isDarkMode ? "light" : "dark"} />
       <Stack
         screenOptions={{
           headerStyle: {
-            backgroundColor: '#000000',
+            backgroundColor: theme.background,
           },
-          headerTintColor: '#FFFFFF',
+          headerTintColor: theme.text,
           headerTitleStyle: {
             fontWeight: 'bold',
           },
@@ -54,12 +57,12 @@ export default function RootLayout() {
         <Stack.Screen name="create-room" options={{ 
           title: 'Create Room',
           presentation: 'modal',
-          headerStyle: { backgroundColor: '#1C1C1E' }
+          headerStyle: { backgroundColor: theme.surface }
         }} />
         <Stack.Screen name="create-post" options={{ 
           title: 'New Recommendation',
           presentation: 'modal',
-          headerStyle: { backgroundColor: '#1C1C1E' }
+          headerStyle: { backgroundColor: theme.surface }
         }} />
       </Stack>
     </>
