@@ -211,136 +211,140 @@ class MessageCreate(BaseModel):
     message_type: str = "text"
 
 # Authentication helper functions
-async def get_current_user(request: Request) -> User:
-    """Get current user from session token (cookie or header)"""
-    # First check for session token in cookies
-    session_token = request.cookies.get("session_token")
+def hash_password(password: str) -> str:
+    """Hash a password using bcrypt"""
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+def verify_password(password: str, hashed_password: str) -> bool:
+    """Verify a password against its hash"""
+    return bcrypt.checkpw(password.encode('utf-8'), hashed_password.encode('utf-8'))
+
+def create_access_token(data: dict):
+    """Create a JWT access token"""
+    to_encode = data.copy()
+    expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+def verify_token(token: str):
+    """Verify and decode a JWT token"""
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except JWTError:
+        return None
+
+# Security scheme for FastAPI
+security = HTTPBearer()
+
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> User:
+    """Get current user from JWT token"""
+    credentials_exception = HTTPException(
+        status_code=401,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
     
-    # Fallback to Authorization header
-    if not session_token:
-        auth_header = request.headers.get("Authorization")
-        if auth_header and auth_header.startswith("Bearer "):
-            session_token = auth_header.split("Bearer ")[1]
+    try:
+        token = credentials.credentials
+        payload = verify_token(token)
+        if payload is None:
+            raise credentials_exception
+        
+        user_id = payload.get("sub")
+        if user_id is None:
+            raise credentials_exception
+            
+    except Exception:
+        raise credentials_exception
     
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    # Find user with valid session
-    user_doc = await db.users.find_one({
-        "session_token": session_token,
-        "session_expires": {"$gt": datetime.now(timezone.utc)}
-    })
-    
-    if not user_doc:
-        raise HTTPException(status_code=401, detail="Session expired or invalid")
+    # Find user in database
+    user_doc = await db.users.find_one({"_id": ObjectId(user_id)})
+    if user_doc is None:
+        raise credentials_exception
     
     return User(**user_doc)
 
 # Authentication endpoints
-@api_router.post("/auth/process-session")
-async def process_session(request: Request, response: Response):
-    """Process session ID from Emergent Auth"""
-    data = await request.json()
-    session_id = data.get("session_id")
-    
-    if not session_id:
-        raise HTTPException(status_code=400, detail="Session ID required")
-    
-    # Call Emergent Auth API to get user data
-    try:
-        headers = {"X-Session-ID": session_id}
-        auth_response = requests.get(
-            "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data",
-            headers=headers
-        )
-        auth_response.raise_for_status()
-        user_data = auth_response.json()
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Invalid session: {str(e)}")
-    
-    # Check if user exists
-    existing_user = await db.users.find_one({"email": user_data["email"]})
-    
+@api_router.post("/auth/register")
+async def register(user_data: UserRegister):
+    """Register a new user"""
+    # Check if email already exists
+    existing_user = await db.users.find_one({"email": user_data.email})
     if existing_user:
-        # Update session for existing user
-        session_token = user_data["session_token"]
-        session_expires = datetime.now(timezone.utc) + timedelta(days=7)
-        
-        await db.users.update_one(
-            {"email": user_data["email"]},
-            {
-                "$set": {
-                    "session_token": session_token,
-                    "session_expires": session_expires
-                }
-            }
-        )
-        user = User(**existing_user)
-    else:
-        # Create new user
-        session_token = user_data["session_token"]
-        session_expires = datetime.now(timezone.utc) + timedelta(days=7)
-        
-        # Generate unique username
-        base_username = user_data["name"].lower().replace(" ", "")
-        username = base_username
-        counter = 1
-        while await db.users.find_one({"username": username}):
-            username = f"{base_username}{counter}"
-            counter += 1
-        
-        new_user = User(
-            email=user_data["email"],
-            name=user_data["name"],
-            username=username,
-            avatar=user_data.get("picture", ""),
-            session_token=session_token,
-            session_expires=session_expires
-        )
-        
-        result = await db.users.insert_one(new_user.dict(by_alias=True, exclude={"id"}))
-        new_user.id = result.inserted_id
-        user = new_user
+        raise HTTPException(status_code=400, detail="Email already registered")
     
-    # Set session cookie
-    response.set_cookie(
-        key="session_token",
-        value=session_token,
-        httponly=True,
-        secure=False,  # Set to True in production with HTTPS
-        samesite="lax",
-        max_age=7 * 24 * 60 * 60,  # 7 days
-        path="/"
+    # Check if username already exists
+    existing_username = await db.users.find_one({"username": user_data.username})
+    if existing_username:
+        raise HTTPException(status_code=400, detail="Username already taken")
+    
+    # Validate password strength (basic validation)
+    if len(user_data.password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters long")
+    
+    # Create new user
+    hashed_password = hash_password(user_data.password)
+    new_user = User(
+        email=user_data.email,
+        username=user_data.username,
+        password_hash=hashed_password,
+        name=user_data.name
     )
+    
+    result = await db.users.insert_one(new_user.dict(by_alias=True, exclude={"id"}))
+    new_user.id = result.inserted_id
+    
+    # Create access token
+    access_token = create_access_token(data={"sub": str(new_user.id)})
     
     return {
+        "access_token": access_token,
+        "token_type": "bearer",
         "user": {
-            "id": str(user.id),
-            "email": user.email,
-            "name": user.name,
-            "username": user.username,
-            "avatar": user.avatar,
-            "bio": user.bio,
-            "external_link": user.external_link,
-            "follower_count": user.follower_count,
-            "following_count": user.following_count
-        },
-        "session_token": session_token
+            "id": str(new_user.id),
+            "email": new_user.email,
+            "username": new_user.username,
+            "name": new_user.name,
+            "avatar": new_user.avatar,
+            "bio": new_user.bio,
+            "external_link": new_user.external_link,
+            "follower_count": new_user.follower_count,
+            "following_count": new_user.following_count
+        }
     }
 
-@api_router.post("/auth/logout")
-async def logout(response: Response, current_user: User = Depends(get_current_user)):
-    """Logout current user"""
-    # Clear session from database
-    await db.users.update_one(
-        {"_id": current_user.id},
-        {"$unset": {"session_token": "", "session_expires": ""}}
-    )
+@api_router.post("/auth/login")
+async def login(user_credentials: UserLogin):
+    """Authenticate user and return access token"""
+    # Find user by email
+    user_doc = await db.users.find_one({"email": user_credentials.email})
+    if not user_doc:
+        raise HTTPException(status_code=401, detail="Invalid email or password")
     
-    # Clear cookie
-    response.delete_cookie(key="session_token", path="/")
+    # Verify password
+    if not verify_password(user_credentials.password, user_doc["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
     
-    return {"message": "Logged out successfully"}
+    # Create access token
+    access_token = create_access_token(data={"sub": str(user_doc["_id"])})
+    
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {
+            "id": str(user_doc["_id"]),
+            "email": user_doc["email"],
+            "username": user_doc["username"],
+            "name": user_doc["name"],
+            "avatar": user_doc.get("avatar", ""),
+            "bio": user_doc.get("bio", ""),
+            "external_link": user_doc.get("external_link", ""),
+            "follower_count": user_doc.get("follower_count", 0),
+            "following_count": user_doc.get("following_count", 0)
+        }
+    }
 
 @api_router.get("/auth/me")
 async def get_current_user_info(current_user: User = Depends(get_current_user)):
@@ -348,8 +352,8 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
     return {
         "id": str(current_user.id),
         "email": current_user.email,
-        "name": current_user.name,
         "username": current_user.username,
+        "name": current_user.name,
         "avatar": current_user.avatar,
         "bio": current_user.bio,
         "external_link": current_user.external_link,
