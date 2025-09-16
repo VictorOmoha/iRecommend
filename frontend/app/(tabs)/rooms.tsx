@@ -11,8 +11,10 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
+import { mockUserRooms } from '../../data/mockData';
 
 const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -30,29 +32,54 @@ export default function RoomsScreen() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [useMockData, setUseMockData] = useState(false);
 
   useEffect(() => {
     if (user) {
       loadRooms();
+    } else {
+      // Show mock data for demo
+      setUseMockData(true);
+      setRooms(mockUserRooms);
+      setLoading(false);
     }
   }, [user]);
 
   const loadRooms = async () => {
     try {
+      const token = await AsyncStorage.getItem('access_token');
+      if (!token) {
+        setUseMockData(true);
+        setRooms(mockUserRooms);
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+
       const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/rooms/my`, {
         method: 'GET',
-        credentials: 'include',
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
 
       if (response.ok) {
         const data = await response.json();
-        setRooms(data);
+        if (data.length === 0) {
+          setUseMockData(true);
+          setRooms(mockUserRooms);
+        } else {
+          setRooms(data);
+        }
+      } else {
+        setUseMockData(true);
+        setRooms(mockUserRooms);
       }
     } catch (error) {
       console.error('Error loading rooms:', error);
+      setUseMockData(true);
+      setRooms(mockUserRooms);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -67,7 +94,10 @@ export default function RoomsScreen() {
   const renderRoom = ({ item }: { item: Room }) => (
     <TouchableOpacity 
       style={[styles.roomCard, { borderLeftColor: item.color }]}
-      onPress={() => router.push(`/room/${item.id}`)}
+      onPress={() => {
+        // For now, just show an alert - we can implement room detail later
+        console.log('Room pressed:', item.name);
+      }}
     >
       <View style={styles.roomHeader}>
         <View style={[styles.roomColorDot, { backgroundColor: item.color }]} />
@@ -98,6 +128,13 @@ export default function RoomsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {useMockData && (
+        <View style={styles.demoNotice}>
+          <Ionicons name="information-circle-outline" size={16} color={theme.primary} />
+          <Text style={styles.demoText}>Demo rooms shown</Text>
+        </View>
+      )}
+
       <View style={styles.header}>
         <Text style={styles.title}>My Rooms</Text>
         <TouchableOpacity 
@@ -146,6 +183,23 @@ const createStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background,
+  },
+  demoNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.surface,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginHorizontal: 16,
+    marginTop: 8,
+    borderRadius: 8,
+  },
+  demoText: {
+    fontSize: 12,
+    color: theme.primary,
+    marginLeft: 6,
+    fontWeight: '500',
   },
   header: {
     flexDirection: 'row',

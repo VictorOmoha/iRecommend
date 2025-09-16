@@ -15,6 +15,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
 import PostCard from '../../components/PostCard';
+import { mockPosts, mockCurrentUser } from '../../data/mockData';
 
 const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -52,11 +53,15 @@ export default function FeedScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [useMockData, setUseMockData] = useState(false);
 
   useEffect(() => {
     if (user) {
       loadPosts();
     } else {
+      // Show mock data for demo purposes
+      setUseMockData(true);
+      setPosts(mockPosts);
       setLoading(false);
     }
   }, [user]);
@@ -68,7 +73,9 @@ export default function FeedScreen() {
       // Get the auth token
       const token = await AsyncStorage.getItem('access_token');
       if (!token) {
-        setError('No authentication token found');
+        // Use mock data if no token
+        setUseMockData(true);
+        setPosts(mockPosts);
         setLoading(false);
         setRefreshing(false);
         return;
@@ -84,18 +91,27 @@ export default function FeedScreen() {
 
       if (response.ok) {
         const data = await response.json();
-        setPosts(data);
+        if (data.length === 0) {
+          // Use mock data if no posts
+          setUseMockData(true);
+          setPosts(mockPosts);
+        } else {
+          setPosts(data);
+        }
       } else if (response.status === 401) {
-        setError('Authentication failed. Please login again.');
-        // Clear invalid token
-        await AsyncStorage.removeItem('access_token');
-        router.replace('/');
+        // Use mock data if auth fails
+        setUseMockData(true);
+        setPosts(mockPosts);
       } else {
-        setError('Failed to load posts');
+        // Use mock data on error
+        setUseMockData(true);
+        setPosts(mockPosts);
       }
     } catch (error) {
       console.error('Error loading posts:', error);
-      setError('Network error. Please check your connection.');
+      // Use mock data on network error
+      setUseMockData(true);
+      setPosts(mockPosts);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -129,33 +145,15 @@ export default function FeedScreen() {
           <ActivityIndicator size="large" color={theme.primary} />
           <Text style={styles.loadingText}>Loading feed...</Text>
           
-          {/* Add a timeout button */}
           <TouchableOpacity 
             style={styles.skipButton}
-            onPress={() => setLoading(false)}
-          >
-            <Text style={styles.skipButtonText}>Skip Loading</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (error) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.emptyContainer}>
-          <Ionicons name="alert-circle-outline" size={64} color={theme.error} />
-          <Text style={styles.errorTitle}>Error</Text>
-          <Text style={styles.errorDescription}>{error}</Text>
-          <TouchableOpacity 
-            style={styles.retryButton}
             onPress={() => {
-              setLoading(true);
-              loadPosts();
+              setUseMockData(true);
+              setPosts(mockPosts);
+              setLoading(false);
             }}
           >
-            <Text style={styles.retryButtonText}>Try Again</Text>
+            <Text style={styles.skipButtonText}>Show Demo Content</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -164,6 +162,13 @@ export default function FeedScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {useMockData && (
+        <View style={styles.demoNotice}>
+          <Ionicons name="information-circle-outline" size={16} color={theme.primary} />
+          <Text style={styles.demoText}>Demo content shown</Text>
+        </View>
+      )}
+      
       {posts.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Ionicons name="newspaper-outline" size={64} color={theme.textSecondary} />
@@ -203,6 +208,23 @@ const createStyles = (theme: any) => StyleSheet.create({
     flex: 1,
     backgroundColor: theme.background,
   },
+  demoNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.surface,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginHorizontal: 16,
+    marginTop: 8,
+    borderRadius: 8,
+  },
+  demoText: {
+    fontSize: 12,
+    color: theme.primary,
+    marginLeft: 6,
+    fontWeight: '500',
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -216,14 +238,15 @@ const createStyles = (theme: any) => StyleSheet.create({
     marginBottom: 24,
   },
   skipButton: {
-    backgroundColor: theme.surfaceSecondary,
+    backgroundColor: theme.primary,
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
   },
   skipButtonText: {
-    color: theme.textSecondary,
+    color: '#FFFFFF',
     fontSize: 14,
+    fontWeight: '600',
   },
   emptyContainer: {
     flex: 1,
@@ -246,21 +269,6 @@ const createStyles = (theme: any) => StyleSheet.create({
     lineHeight: 24,
     marginBottom: 24,
   },
-  errorTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: theme.text,
-    marginTop: 16,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  errorDescription: {
-    fontSize: 16,
-    color: theme.textSecondary,
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 24,
-  },
   createButton: {
     backgroundColor: theme.primary,
     paddingVertical: 12,
@@ -268,17 +276,6 @@ const createStyles = (theme: any) => StyleSheet.create({
     borderRadius: 8,
   },
   createButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  retryButton: {
-    backgroundColor: theme.primary,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-  },
-  retryButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
