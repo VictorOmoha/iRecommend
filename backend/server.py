@@ -12,6 +12,8 @@ import logging
 import uuid
 from pathlib import Path
 from bson import ObjectId
+import bcrypt
+from jose import JWTError, jwt
 import requests
 
 # Load environment variables
