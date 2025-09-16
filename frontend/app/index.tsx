@@ -112,8 +112,8 @@ export default function Index() {
         // Store session token locally as backup
         await AsyncStorage.setItem('session_token', data.session_token);
         
-        // Clean up URL by removing fragment
-        // This is a simplified cleanup - in a real app you'd handle this better
+        // Redirect to main app
+        router.replace('/(tabs)/feed');
         Alert.alert('Welcome!', `Hello ${data.user.name}! You're now logged in.`);
       } else {
         const error = await response.json();
