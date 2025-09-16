@@ -1,28 +1,84 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   View, 
   Text, 
   StyleSheet, 
   TouchableOpacity, 
   SafeAreaView,
+  ActivityIndicator,
+  Alert
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useThemeStore } from '../store/themeStore';
 
-export default function IndexSimple() {
+const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+
+interface User {
+  id: string;
+  name: string;
+  username: string;
+  email: string;
+  avatar?: string;
+  bio?: string;
+  external_link?: string;
+  follower_count: number;
+  following_count: number;
+}
+
+export default function Index() {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(false); // Start with false to show content immediately
+  const { theme, isDarkMode, initializeTheme } = useThemeStore();
+
+  useEffect(() => {
+    initializeApp();
+  }, []);
+
+  const initializeApp = async () => {
+    try {
+      // Initialize theme
+      await initializeTheme();
+      
+      // Quick check for existing session
+      const token = await AsyncStorage.getItem('access_token');
+      if (token) {
+        // If we have a token, redirect to main app immediately
+        router.replace('/(tabs)/feed');
+      }
+    } catch (error) {
+      console.log('App initialization error:', error);
+    }
+  };
+
   const handleLogin = () => {
-    console.log('Login button pressed');
+    console.log('Navigating to login...');
     router.push('/login');
   };
 
   const handleRegister = () => {
-    console.log('Register button pressed');
+    console.log('Navigating to register...');
     router.push('/register');
   };
 
+  const styles = createStyles(theme);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar style={isDarkMode ? "light" : "dark"} />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.primary} />
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar style="light" />
+      <StatusBar style={isDarkMode ? "light" : "dark"} />
       
       <View style={styles.header}>
         <Text style={styles.appTitle}>i-Recommend</Text>
@@ -67,10 +123,20 @@ export default function IndexSimple() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: theme.background,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: theme.text,
+    fontSize: 16,
+    marginTop: 16,
   },
   header: {
     paddingHorizontal: 24,
@@ -81,12 +147,12 @@ const styles = StyleSheet.create({
   appTitle: {
     fontSize: 36,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: theme.text,
     marginBottom: 8,
   },
   appSubtitle: {
     fontSize: 16,
-    color: '#8E8E93',
+    color: theme.textSecondary,
     textAlign: 'center',
   },
   content: {
@@ -100,13 +166,13 @@ const styles = StyleSheet.create({
   welcomeTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: theme.text,
     textAlign: 'center',
     marginBottom: 16,
   },
   welcomeDescription: {
     fontSize: 16,
-    color: '#8E8E93',
+    color: theme.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 32,
@@ -116,7 +182,7 @@ const styles = StyleSheet.create({
   },
   featureItem: {
     fontSize: 16,
-    color: '#FFFFFF',
+    color: theme.text,
     marginBottom: 12,
     lineHeight: 24,
   },
@@ -124,7 +190,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   loginButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: theme.primary,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -139,11 +205,11 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#007AFF',
+    borderColor: theme.primary,
     alignItems: 'center',
   },
   registerButtonText: {
-    color: '#007AFF',
+    color: theme.primary,
     fontSize: 18,
     fontWeight: '600',
   },
