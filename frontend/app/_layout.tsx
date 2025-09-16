@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '../store/authStore';
 import { useThemeStore } from '../store/themeStore';
 
@@ -11,16 +12,31 @@ export default function RootLayout() {
   const { initializeTheme, theme, isDarkMode } = useThemeStore();
 
   useEffect(() => {
-    initializeTheme();
-    checkExistingSession();
+    initializeApp();
   }, []);
+
+  const initializeApp = async () => {
+    // Initialize theme first
+    await initializeTheme();
+    
+    // Then check authentication
+    await checkExistingSession();
+  };
 
   const checkExistingSession = async () => {
     try {
+      // Check if user has a stored token
+      const token = await AsyncStorage.getItem('access_token');
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+
+      // Verify token with backend
       const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/auth/me`, {
         method: 'GET',
-        credentials: 'include',
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
@@ -28,9 +44,13 @@ export default function RootLayout() {
       if (response.ok) {
         const userData = await response.json();
         setUser(userData);
+      } else {
+        // Token is invalid, remove it
+        await AsyncStorage.removeItem('access_token');
       }
     } catch (error) {
       console.log('No existing session found');
+      await AsyncStorage.removeItem('access_token');
     } finally {
       setLoading(false);
     }
