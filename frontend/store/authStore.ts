@@ -33,21 +33,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   
   logout: async () => {
     try {
-      // Call backend logout
-      await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/auth/logout`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-      
-      // Clear local storage
-      await AsyncStorage.removeItem('session_token');
+      // Clear local storage first
+      await AsyncStorage.removeItem('access_token');
       
       // Clear user state
       set({ user: null });
     } catch (error) {
       console.error('Logout error:', error);
-      // Still clear local state even if backend call fails
-      await AsyncStorage.removeItem('session_token');
+      // Still clear local state even if there's an error
+      await AsyncStorage.removeItem('access_token');
       set({ user: null });
     }
   },
