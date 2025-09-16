@@ -15,6 +15,7 @@ import {
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useThemeStore } from '../store/themeStore';
 
 const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -29,6 +30,7 @@ export default function RegisterScreen() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const { theme, isDarkMode } = useThemeStore();
 
   const updateField = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -108,6 +110,8 @@ export default function RegisterScreen() {
     }
   };
 
+  const styles = createStyles(theme);
+
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView 
@@ -119,7 +123,7 @@ export default function RegisterScreen() {
             style={styles.backButton}
             onPress={() => router.back()}
           >
-            <Ionicons name="arrow-back" size={24} color="#007AFF" />
+            <Ionicons name="arrow-back" size={24} color={theme.primary} />
           </TouchableOpacity>
           <Text style={styles.title}>Create Account</Text>
         </View>
@@ -131,7 +135,7 @@ export default function RegisterScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="Enter your full name"
-                placeholderTextColor="#8E8E93"
+                placeholderTextColor={theme.textSecondary}
                 value={formData.name}
                 onChangeText={(value) => updateField('name', value)}
                 autoCapitalize="words"
@@ -144,7 +148,7 @@ export default function RegisterScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="Choose a username"
-                placeholderTextColor="#8E8E93"
+                placeholderTextColor={theme.textSecondary}
                 value={formData.username}
                 onChangeText={(value) => updateField('username', value)}
                 autoCapitalize="none"
@@ -161,7 +165,7 @@ export default function RegisterScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="Enter your email"
-                placeholderTextColor="#8E8E93"
+                placeholderTextColor={theme.textSecondary}
                 value={formData.email}
                 onChangeText={(value) => updateField('email', value)}
                 keyboardType="email-address"
@@ -177,7 +181,7 @@ export default function RegisterScreen() {
                 <TextInput
                   style={styles.passwordInput}
                   placeholder="Create a password"
-                  placeholderTextColor="#8E8E93"
+                  placeholderTextColor={theme.textSecondary}
                   value={formData.password}
                   onChangeText={(value) => updateField('password', value)}
                   secureTextEntry={!showPassword}
@@ -192,7 +196,7 @@ export default function RegisterScreen() {
                   <Ionicons 
                     name={showPassword ? 'eye-off' : 'eye'} 
                     size={20} 
-                    color="#8E8E93" 
+                    color={theme.textSecondary} 
                   />
                 </TouchableOpacity>
               </View>
@@ -207,7 +211,7 @@ export default function RegisterScreen() {
                 <TextInput
                   style={styles.passwordInput}
                   placeholder="Confirm your password"
-                  placeholderTextColor="#8E8E93"
+                  placeholderTextColor={theme.textSecondary}
                   value={formData.confirmPassword}
                   onChangeText={(value) => updateField('confirmPassword', value)}
                   secureTextEntry={!showConfirmPassword}
@@ -222,7 +226,7 @@ export default function RegisterScreen() {
                   <Ionicons 
                     name={showConfirmPassword ? 'eye-off' : 'eye'} 
                     size={20} 
-                    color="#8E8E93" 
+                    color={theme.textSecondary} 
                   />
                 </TouchableOpacity>
               </View>
@@ -253,10 +257,10 @@ export default function RegisterScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: theme.background,
   },
   keyboardView: {
     flex: 1,
@@ -267,7 +271,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#2C2C2E',
+    borderBottomColor: theme.border,
   },
   backButton: {
     padding: 8,
@@ -276,7 +280,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: theme.text,
   },
   scrollView: {
     flex: 1,
@@ -290,18 +294,18 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: theme.text,
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#1C1C1E',
+    backgroundColor: theme.surface,
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
-    color: '#FFFFFF',
+    color: theme.text,
   },
   passwordContainer: {
-    backgroundColor: '#1C1C1E',
+    backgroundColor: theme.surface,
     borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
@@ -310,25 +314,25 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
     fontSize: 16,
-    color: '#FFFFFF',
+    color: theme.text,
   },
   eyeButton: {
     padding: 16,
   },
   helperText: {
     fontSize: 12,
-    color: '#8E8E93',
+    color: theme.textSecondary,
     marginTop: 6,
   },
   registerButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: theme.primary,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 24,
   },
   registerButtonDisabled: {
-    backgroundColor: '#2C2C2E',
+    backgroundColor: theme.surfaceSecondary,
   },
   registerButtonText: {
     color: '#FFFFFF',
@@ -343,11 +347,11 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 16,
-    color: '#8E8E93',
+    color: theme.textSecondary,
   },
   footerLink: {
     fontSize: 16,
-    color: '#007AFF',
+    color: theme.primary,
     fontWeight: '600',
   },
 });
