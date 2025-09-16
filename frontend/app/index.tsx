@@ -110,6 +110,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000000',
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+  },
   header: {
     paddingHorizontal: 24,
     paddingTop: 40,
@@ -184,5 +193,18 @@ const styles = StyleSheet.create({
     color: '#007AFF',
     fontSize: 18,
     fontWeight: '600',
+  },
+  demoButton: {
+    backgroundColor: 'transparent',
+    paddingVertical: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#8E8E93',
+    alignItems: 'center',
+  },
+  demoButtonText: {
+    color: '#8E8E93',
+    fontSize: 16,
+    fontWeight: '500',
   },
 });
