@@ -63,22 +63,32 @@ class PyObjectId(ObjectId):
 class User(BaseModel):
     id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
     email: str
-    name: str
     username: str
+    password_hash: str
+    name: str
     avatar: Optional[str] = ""  # base64 encoded image
     bio: Optional[str] = ""
     external_link: Optional[str] = ""
     follower_count: int = 0
     following_count: int = 0
     rooms: List[PyObjectId] = []
+    is_active: bool = True
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    session_token: Optional[str] = None
-    session_expires: Optional[datetime] = None
 
     class Config:
         populate_by_name = True
         arbitrary_types_allowed = True
         json_encoders = {ObjectId: str}
+
+class UserRegister(BaseModel):
+    email: str
+    username: str
+    password: str
+    name: str
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
 
 class UserCreate(BaseModel):
     username: str
