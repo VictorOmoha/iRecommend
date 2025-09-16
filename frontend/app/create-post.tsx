@@ -14,7 +14,10 @@ import {
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '../store/authStore';
+import { useThemeStore } from '../store/themeStore';
+import { mockUserRooms } from '../data/mockData';
 
 const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -27,6 +30,7 @@ interface Room {
 
 export default function CreatePostScreen() {
   const { user } = useAuthStore();
+  const { theme } = useThemeStore();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [title, setTitle] = useState('');
@@ -38,6 +42,7 @@ export default function CreatePostScreen() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [loadingRooms, setLoadingRooms] = useState(true);
+  const [useMockData, setUseMockData] = useState(false);
 
   useEffect(() => {
     loadRooms();
@@ -45,23 +50,53 @@ export default function CreatePostScreen() {
 
   const loadRooms = async () => {
     try {
+      const token = await AsyncStorage.getItem('access_token');
+      if (!token) {
+        setUseMockData(true);
+        setRooms(mockUserRooms);
+        if (mockUserRooms.length > 0) {
+          setSelectedRoom(mockUserRooms[0]);
+        }
+        setLoadingRooms(false);
+        return;
+      }
+
       const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/rooms/my`, {
         method: 'GET',
-        credentials: 'include',
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
 
       if (response.ok) {
         const data = await response.json();
-        setRooms(data);
-        if (data.length > 0) {
-          setSelectedRoom(data[0]);
+        if (data.length === 0) {
+          setUseMockData(true);
+          setRooms(mockUserRooms);
+          if (mockUserRooms.length > 0) {
+            setSelectedRoom(mockUserRooms[0]);
+          }
+        } else {
+          setRooms(data);
+          if (data.length > 0) {
+            setSelectedRoom(data[0]);
+          }
+        }
+      } else {
+        setUseMockData(true);
+        setRooms(mockUserRooms);
+        if (mockUserRooms.length > 0) {
+          setSelectedRoom(mockUserRooms[0]);
         }
       }
     } catch (error) {
       console.error('Error loading rooms:', error);
+      setUseMockData(true);
+      setRooms(mockUserRooms);
+      if (mockUserRooms.length > 0) {
+        setSelectedRoom(mockUserRooms[0]);
+      }
     } finally {
       setLoadingRooms(false);
     }
@@ -137,7 +172,17 @@ export default function CreatePostScreen() {
     }
 
     setCreating(true);
+    
     try {
+      if (useMockData) {
+        // Simulate creating post with mock data
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        Alert.alert('Success', 'Demo recommendation created successfully!', [
+          { text: 'OK', onPress: () => router.back() }
+        ]);
+        return;
+      }
+
       const tagArray = tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
 
       const postData = {
@@ -152,10 +197,11 @@ export default function CreatePostScreen() {
         action_type: actionType,
       };
 
+      const token = await AsyncStorage.getItem('access_token');
       const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/posts`, {
         method: 'POST',
-        credentials: 'include',
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(postData),
@@ -177,11 +223,13 @@ export default function CreatePostScreen() {
     }
   };
 
+  const styles = createStyles(theme);
+
   if (loadingRooms) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color={theme.primary} />
           <Text style={styles.loadingText}>Loading rooms...</Text>
         </View>
       </SafeAreaView>
@@ -192,7 +240,7 @@ export default function CreatePostScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.emptyContainer}>
-          <Ionicons name="grid-outline" size={64} color="#8E8E93" />
+          <Ionicons name="grid-outline" size={64} color={theme.textSecondary} />
           <Text style={styles.emptyTitle}>No rooms found</Text>
           <Text style={styles.emptyDescription}>
             You need to create a room first before posting recommendations.
@@ -210,6 +258,13 @@ export default function CreatePostScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {useMockData && (
+        <View style={styles.demoNotice}>
+          <Ionicons name="information-circle-outline" size={16} color={theme.primary} />
+          <Text style={styles.demoText}>Demo mode - post won't be saved</Text>
+        </View>
+      )}
+
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.form}>
           {/* Room Selection */}
@@ -240,12 +295,12 @@ export default function CreatePostScreen() {
                 style={styles.removeImageButton}
                 onPress={() => setSelectedImage(null)}
               >
-                <Ionicons name="close-circle" size={24} color="#FF3B30" />
+                <Ionicons name="close-circle" size={24} color={theme.error} />
               </TouchableOpacity>
             </View>
           ) : (
             <TouchableOpacity style={styles.imagePicker} onPress={showImagePicker}>
-              <Ionicons name="camera-outline" size={32} color="#8E8E93" />
+              <Ionicons name="camera-outline" size={32} color={theme.textSecondary} />
               <Text style={styles.imagePickerText}>Add Photo</Text>
             </TouchableOpacity>
           )}
@@ -255,7 +310,7 @@ export default function CreatePostScreen() {
           <TextInput
             style={styles.input}
             placeholder="What are you recommending?"
-            placeholderTextColor="#8E8E93"
+            placeholderTextColor={theme.textSecondary}
             value={title}
             onChangeText={setTitle}
             maxLength={80}
@@ -267,7 +322,7 @@ export default function CreatePostScreen() {
           <TextInput
             style={[styles.input, styles.textArea]}
             placeholder="Tell us more about it..."
-            placeholderTextColor="#8E8E93"
+            placeholderTextColor={theme.textSecondary}
             value={description}
             onChangeText={setDescription}
             maxLength={280}
@@ -282,18 +337,18 @@ export default function CreatePostScreen() {
               style={[
                 styles.toggleButton,
                 recommendationType === 'recommend' && styles.toggleButtonActive,
-                { borderColor: '#34C759' }
+                { borderColor: theme.success }
               ]}
               onPress={() => setRecommendationType('recommend')}
             >
               <Ionicons 
                 name="thumbs-up" 
                 size={20} 
-                color={recommendationType === 'recommend' ? '#34C759' : '#8E8E93'} 
+                color={recommendationType === 'recommend' ? theme.success : theme.textSecondary} 
               />
               <Text style={[
                 styles.toggleText,
-                recommendationType === 'recommend' && { color: '#34C759' }
+                recommendationType === 'recommend' && { color: theme.success }
               ]}>
                 Recommend
               </Text>
@@ -303,18 +358,18 @@ export default function CreatePostScreen() {
               style={[
                 styles.toggleButton,
                 recommendationType === 'not_recommend' && styles.toggleButtonActive,
-                { borderColor: '#FF3B30' }
+                { borderColor: theme.error }
               ]}
               onPress={() => setRecommendationType('not_recommend')}
             >
               <Ionicons 
                 name="thumbs-down" 
                 size={20} 
-                color={recommendationType === 'not_recommend' ? '#FF3B30' : '#8E8E93'} 
+                color={recommendationType === 'not_recommend' ? theme.error : theme.textSecondary} 
               />
               <Text style={[
                 styles.toggleText,
-                recommendationType === 'not_recommend' && { color: '#FF3B30' }
+                recommendationType === 'not_recommend' && { color: theme.error }
               ]}>
                 Don't Recommend
               </Text>
@@ -341,11 +396,11 @@ export default function CreatePostScreen() {
                 <Ionicons 
                   name={action.icon as any} 
                   size={20} 
-                  color={actionType === action.key ? '#007AFF' : '#8E8E93'} 
+                  color={actionType === action.key ? theme.primary : theme.textSecondary} 
                 />
                 <Text style={[
                   styles.actionText,
-                  actionType === action.key && { color: '#007AFF' }
+                  actionType === action.key && { color: theme.primary }
                 ]}>
                   {action.label}
                 </Text>
@@ -358,7 +413,7 @@ export default function CreatePostScreen() {
           <TextInput
             style={styles.input}
             placeholder="food, restaurant, italian (comma separated)"
-            placeholderTextColor="#8E8E93"
+            placeholderTextColor={theme.textSecondary}
             value={tags}
             onChangeText={setTags}
           />
@@ -368,7 +423,7 @@ export default function CreatePostScreen() {
           <TextInput
             style={styles.input}
             placeholder="https://example.com"
-            placeholderTextColor="#8E8E93"
+            placeholderTextColor={theme.textSecondary}
             value={externalLink}
             onChangeText={setExternalLink}
             autoCapitalize="none"
@@ -404,10 +459,26 @@ export default function CreatePostScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: theme.background,
+  },
+  demoNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.surface,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginHorizontal: 16,
+    marginTop: 8,
+    borderRadius: 8,
+  },
+  demoText: {
+    fontSize: 12,
+    color: theme.primary,
+    marginLeft: 6,
+    fontWeight: '500',
   },
   content: {
     flex: 1,
@@ -418,7 +489,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    color: '#FFFFFF',
+    color: theme.text,
     fontSize: 16,
     marginTop: 16,
   },
@@ -431,20 +502,20 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: theme.text,
     marginTop: 16,
     marginBottom: 8,
     textAlign: 'center',
   },
   emptyDescription: {
     fontSize: 16,
-    color: '#8E8E93',
+    color: theme.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 24,
   },
   createRoomButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: theme.primary,
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
@@ -460,7 +531,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: theme.text,
     marginBottom: 8,
     marginTop: 16,
   },
@@ -470,7 +541,7 @@ const styles = StyleSheet.create({
   roomOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1C1C1E',
+    backgroundColor: theme.surface,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 12,
@@ -486,7 +557,7 @@ const styles = StyleSheet.create({
   },
   roomText: {
     fontSize: 14,
-    color: '#FFFFFF',
+    color: theme.text,
     fontWeight: '500',
   },
   imageContainer: {
@@ -506,25 +577,25 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   imagePicker: {
-    backgroundColor: '#1C1C1E',
+    backgroundColor: theme.surface,
     borderRadius: 12,
     paddingVertical: 40,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#2C2C2E',
+    borderColor: theme.border,
     borderStyle: 'dashed',
   },
   imagePickerText: {
     fontSize: 16,
-    color: '#8E8E93',
+    color: theme.textSecondary,
     marginTop: 8,
   },
   input: {
-    backgroundColor: '#1C1C1E',
+    backgroundColor: theme.surface,
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
-    color: '#FFFFFF',
+    color: theme.text,
     marginBottom: 8,
   },
   textArea: {
@@ -533,7 +604,7 @@ const styles = StyleSheet.create({
   },
   charCount: {
     fontSize: 14,
-    color: '#8E8E93',
+    color: theme.textSecondary,
     textAlign: 'right',
     marginBottom: 16,
   },
@@ -547,17 +618,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#1C1C1E',
+    backgroundColor: theme.surface,
     paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 2,
   },
   toggleButtonActive: {
-    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    backgroundColor: theme.primary + '20',
   },
   toggleText: {
     fontSize: 16,
-    color: '#8E8E93',
+    color: theme.textSecondary,
     fontWeight: '600',
     marginLeft: 8,
   },
@@ -573,16 +644,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#1C1C1E',
+    backgroundColor: theme.surface,
     paddingVertical: 12,
     borderRadius: 12,
   },
   actionButtonActive: {
-    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    backgroundColor: theme.primary + '20',
   },
   actionText: {
     fontSize: 14,
-    color: '#8E8E93',
+    color: theme.textSecondary,
     fontWeight: '500',
     marginLeft: 6,
   },
@@ -591,11 +662,11 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 12,
     borderTopWidth: 1,
-    borderTopColor: '#2C2C2E',
+    borderTopColor: theme.border,
   },
   cancelButton: {
     flex: 1,
-    backgroundColor: '#2C2C2E',
+    backgroundColor: theme.surfaceSecondary,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
@@ -603,17 +674,17 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: theme.text,
   },
   postButton: {
     flex: 2,
-    backgroundColor: '#007AFF',
+    backgroundColor: theme.primary,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
   },
   postButtonDisabled: {
-    backgroundColor: '#2C2C2E',
+    backgroundColor: theme.surfaceSecondary,
   },
   postButtonText: {
     fontSize: 16,
