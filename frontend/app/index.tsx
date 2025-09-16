@@ -80,6 +80,9 @@ export default function Index() {
       if (response.ok) {
         const userData = await response.json();
         setUser(userData);
+        // Redirect to main app if authenticated
+        router.replace('/(tabs)/feed');
+        return;
       }
     } catch (error) {
       console.log('No existing session found');
