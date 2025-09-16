@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -8,15 +8,30 @@ import {
   Alert,
   Image,
   Switch,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
+import { mockCurrentUser } from '../../data/mockData';
 
 export default function ProfileScreen() {
   const { user, logout } = useAuthStore();
   const { theme, isDarkMode, toggleTheme } = useThemeStore();
+  const [profileData, setProfileData] = useState(user || mockCurrentUser);
+  const [isDemo, setIsDemo] = useState(!user);
+
+  useEffect(() => {
+    if (user) {
+      setProfileData(user);
+      setIsDemo(false);
+    } else {
+      setProfileData(mockCurrentUser);
+      setIsDemo(true);
+    }
+  }, [user]);
 
   const handleLogout = () => {
     Alert.alert(
@@ -36,115 +51,172 @@ export default function ProfileScreen() {
     );
   };
 
-  const styles = createStyles(theme);
+  const handleEditProfile = () => {
+    if (isDemo) {
+      Alert.alert(
+        'Demo Mode',
+        'This is a demo profile. Please login to edit your actual profile.',
+        [{ text: 'OK' }]
+      );
+    } else {
+      // Navigate to edit profile screen (not implemented yet)
+      Alert.alert('Edit Profile', 'Profile editing coming soon!');
+    }
+  };
 
-  if (!user) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>Please login to view your profile</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  const handleMyRooms = () => {
+    router.push('/(tabs)/rooms');
+  };
+
+  const handleSettingPress = (setting: string) => {
+    Alert.alert(setting, 'This feature is coming soon!');
+  };
+
+  const styles = createStyles(theme);
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.userInfo}>
-          {user.avatar ? (
-            <Image source={{ uri: user.avatar }} style={styles.avatar} />
-          ) : (
-            <View style={[styles.avatar, styles.avatarPlaceholder]}>
-              <Ionicons name="person" size={40} color={theme.textSecondary} />
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {isDemo && (
+          <View style={styles.demoNotice}>
+            <Ionicons name="information-circle-outline" size={16} color={theme.primary} />
+            <Text style={styles.demoText}>Demo profile shown - Login to see your actual profile</Text>
+          </View>
+        )}
+
+        <View style={styles.header}>
+          <View style={styles.userInfo}>
+            {profileData.avatar ? (
+              <Image source={{ uri: profileData.avatar }} style={styles.avatar} />
+            ) : (
+              <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                <Ionicons name="person" size={40} color={theme.textSecondary} />
+              </View>
+            )}
+            
+            <View style={styles.userDetails}>
+              <Text style={styles.userName}>{profileData.name}</Text>
+              <Text style={styles.userHandle}>@{profileData.username}</Text>
+              {profileData.bio && <Text style={styles.userBio}>{profileData.bio}</Text>}
+              {profileData.external_link && (
+                <TouchableOpacity 
+                  onPress={() => {
+                    if (profileData.external_link) {
+                      Alert.alert('External Link', profileData.external_link);
+                    }
+                  }}
+                >
+                  <Text style={styles.externalLink}>🔗 {profileData.external_link}</Text>
+                </TouchableOpacity>
+              )}
             </View>
-          )}
+          </View>
+
+          <View style={styles.stats}>
+            <View style={styles.stat}>
+              <Text style={styles.statNumber}>{profileData.follower_count}</Text>
+              <Text style={styles.statLabel}>Followers</Text>
+            </View>
+            <View style={styles.stat}>
+              <Text style={styles.statNumber}>{profileData.following_count}</Text>
+              <Text style={styles.statLabel}>Following</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.actions}>
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={handleEditProfile}
+          >
+            <Ionicons name="create-outline" size={20} color={theme.primary} />
+            <Text style={styles.actionText}>Edit Profile</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={handleMyRooms}
+          >
+            <Ionicons name="grid-outline" size={20} color={theme.primary} />
+            <Text style={styles.actionText}>My Rooms</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Preferences</Text>
           
-          <View style={styles.userDetails}>
-            <Text style={styles.userName}>{user.name}</Text>
-            <Text style={styles.userHandle}>@{user.username}</Text>
-            {user.bio && <Text style={styles.userBio}>{user.bio}</Text>}
+          <View style={styles.settingItem}>
+            <View style={styles.settingLeft}>
+              <Ionicons name={isDarkMode ? "moon" : "sunny"} size={20} color={theme.text} />
+              <Text style={styles.settingText}>Dark Mode</Text>
+            </View>
+            <Switch
+              value={isDarkMode}
+              onValueChange={toggleTheme}
+              trackColor={{ false: theme.border, true: theme.primary + '80' }}
+              thumbColor={isDarkMode ? theme.primary : theme.textSecondary}
+            />
           </View>
         </View>
 
-        <View style={styles.stats}>
-          <View style={styles.stat}>
-            <Text style={styles.statNumber}>{user.follower_count}</Text>
-            <Text style={styles.statLabel}>Followers</Text>
-          </View>
-          <View style={styles.stat}>
-            <Text style={styles.statNumber}>{user.following_count}</Text>
-            <Text style={styles.statLabel}>Following</Text>
-          </View>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Settings</Text>
+          
+          <TouchableOpacity 
+            style={styles.settingItem}
+            onPress={() => handleSettingPress('Notifications')}
+          >
+            <View style={styles.settingLeft}>
+              <Ionicons name="notifications-outline" size={20} color={theme.text} />
+              <Text style={styles.settingText}>Notifications</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.settingItem}
+            onPress={() => handleSettingPress('Privacy')}
+          >
+            <View style={styles.settingLeft}>
+              <Ionicons name="lock-closed-outline" size={20} color={theme.text} />
+              <Text style={styles.settingText}>Privacy</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.settingItem}
+            onPress={() => handleSettingPress('Help & Support')}
+          >
+            <View style={styles.settingLeft}>
+              <Ionicons name="help-circle-outline" size={20} color={theme.text} />
+              <Text style={styles.settingText}>Help & Support</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.settingItem}
+            onPress={() => handleSettingPress('About')}
+          >
+            <View style={styles.settingLeft}>
+              <Ionicons name="information-circle-outline" size={20} color={theme.text} />
+              <Text style={styles.settingText}>About i-Recommend</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
+          </TouchableOpacity>
         </View>
-      </View>
 
-      <View style={styles.actions}>
-        <TouchableOpacity 
-          style={styles.actionButton}
-          onPress={() => router.push('/edit-profile')}
-        >
-          <Ionicons name="create-outline" size={20} color={theme.primary} />
-          <Text style={styles.actionText}>Edit Profile</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.actionButton}
-          onPress={() => router.push('/rooms')}
-        >
-          <Ionicons name="grid-outline" size={20} color={theme.primary} />
-          <Text style={styles.actionText}>My Rooms</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Settings</Text>
-        
-        <View style={styles.settingItem}>
-          <View style={styles.settingLeft}>
-            <Ionicons name={isDarkMode ? "moon" : "sunny"} size={20} color={theme.text} />
-            <Text style={styles.settingText}>Dark Mode</Text>
-          </View>
-          <Switch
-            value={isDarkMode}
-            onValueChange={toggleTheme}
-            trackColor={{ false: theme.border, true: theme.primary + '80' }}
-            thumbColor={isDarkMode ? theme.primary : theme.textSecondary}
-          />
+        <View style={styles.section}>
+          <TouchableOpacity 
+            style={styles.logoutButton}
+            onPress={isDemo ? () => router.replace('/') : handleLogout}
+          >
+            <Ionicons name={isDemo ? "log-in-outline" : "log-out-outline"} size={20} color={theme.error} />
+            <Text style={styles.logoutText}>{isDemo ? 'Login' : 'Logout'}</Text>
+          </TouchableOpacity>
         </View>
-
-        <TouchableOpacity style={styles.settingItem}>
-          <View style={styles.settingLeft}>
-            <Ionicons name="notifications-outline" size={20} color={theme.text} />
-            <Text style={styles.settingText}>Notifications</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.settingItem}>
-          <View style={styles.settingLeft}>
-            <Ionicons name="lock-closed-outline" size={20} color={theme.text} />
-            <Text style={styles.settingText}>Privacy</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.settingItem}>
-          <View style={styles.settingLeft}>
-            <Ionicons name="help-circle-outline" size={20} color={theme.text} />
-            <Text style={styles.settingText}>Help & Support</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
-        </TouchableOpacity>
-      </View>
-
-      <TouchableOpacity 
-        style={styles.logoutButton}
-        onPress={handleLogout}
-      >
-        <Ionicons name="log-out-outline" size={20} color={theme.error} />
-        <Text style={styles.logoutText}>Logout</Text>
-      </TouchableOpacity>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -154,14 +226,22 @@ const createStyles = (theme: any) => StyleSheet.create({
     flex: 1,
     backgroundColor: theme.background,
   },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  demoNotice: {
+    flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: theme.surface,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginHorizontal: 16,
+    marginTop: 8,
+    borderRadius: 8,
   },
-  emptyText: {
-    fontSize: 18,
-    color: theme.textSecondary,
+  demoText: {
+    fontSize: 12,
+    color: theme.primary,
+    marginLeft: 6,
+    fontWeight: '500',
+    flex: 1,
   },
   header: {
     padding: 16,
@@ -202,6 +282,12 @@ const createStyles = (theme: any) => StyleSheet.create({
     fontSize: 16,
     color: theme.text,
     lineHeight: 22,
+    marginBottom: 8,
+  },
+  externalLink: {
+    fontSize: 14,
+    color: theme.primary,
+    textDecorationLine: 'underline',
   },
   stats: {
     flexDirection: 'row',
@@ -274,11 +360,8 @@ const createStyles = (theme: any) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: theme.surface,
-    marginHorizontal: 16,
     paddingVertical: 16,
     borderRadius: 12,
-    marginTop: 'auto',
-    marginBottom: 16,
   },
   logoutText: {
     fontSize: 16,

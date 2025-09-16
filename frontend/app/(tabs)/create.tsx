@@ -7,8 +7,13 @@ export default function CreateScreen() {
     React.useCallback(() => {
       // Navigate to create-post when this tab is focused
       router.push('/create-post');
+      
+      // Return to previous tab after navigation
+      return () => {
+        // This cleanup function runs when the screen loses focus
+      };
     }, [])
   );
 
-  return <View />;
+  return <View style={{ flex: 1, backgroundColor: 'transparent' }} />;
 }

@@ -6,10 +6,10 @@ import {
   TouchableOpacity,
   Image,
   Linking,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-
-const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+import { useThemeStore } from '../store/themeStore';
 
 interface Post {
   id: string;
@@ -44,6 +44,7 @@ interface PostCardProps {
 }
 
 export default function PostCard({ post, onLike }: PostCardProps) {
+  const { theme } = useThemeStore();
   const [liked, setLiked] = useState(false);
   const [liking, setLiking] = useState(false);
 
@@ -52,19 +53,12 @@ export default function PostCard({ post, onLike }: PostCardProps) {
     
     setLiking(true);
     try {
-      const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/posts/${post.id}/like`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setLiked(data.liked);
-        onLike?.(post.id, data.liked);
-      }
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      const newLikedState = !liked;
+      setLiked(newLikedState);
+      onLike?.(post.id, newLikedState);
     } catch (error) {
       console.error('Error liking post:', error);
     } finally {
@@ -74,8 +68,27 @@ export default function PostCard({ post, onLike }: PostCardProps) {
 
   const handleExternalLink = () => {
     if (post.external_link) {
-      Linking.openURL(post.external_link);
+      Alert.alert(
+        'Open Link',
+        `Open ${post.external_link}?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Open', onPress: () => Linking.openURL(post.external_link!) }
+        ]
+      );
     }
+  };
+
+  const handleComment = () => {
+    Alert.alert('Comments', 'Comment feature coming soon!');
+  };
+
+  const handleRepost = () => {
+    Alert.alert('Repost', 'Repost feature coming soon!');
+  };
+
+  const handleShare = () => {
+    Alert.alert('Share', 'Share feature coming soon!');
   };
 
   const getActionIcon = () => {
@@ -89,7 +102,7 @@ export default function PostCard({ post, onLike }: PostCardProps) {
   };
 
   const getRecommendationColor = () => {
-    return post.recommendation_type === 'recommend' ? '#34C759' : '#FF3B30';
+    return post.recommendation_type === 'recommend' ? theme.success : theme.error;
   };
 
   const formatDate = (dateString: string) => {
@@ -106,6 +119,8 @@ export default function PostCard({ post, onLike }: PostCardProps) {
     return date.toLocaleDateString();
   };
 
+  const styles = createStyles(theme);
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -115,7 +130,7 @@ export default function PostCard({ post, onLike }: PostCardProps) {
             <Image source={{ uri: post.user.avatar }} style={styles.avatar} />
           ) : (
             <View style={[styles.avatar, styles.avatarPlaceholder]}>
-              <Ionicons name="person" size={20} color="#8E8E93" />
+              <Ionicons name="person" size={20} color={theme.textSecondary} />
             </View>
           )}
           <View style={styles.userDetails}>
@@ -148,7 +163,7 @@ export default function PostCard({ post, onLike }: PostCardProps) {
       {/* Content */}
       <View style={styles.content}>
         <View style={styles.titleRow}>
-          <View style={styles.recommendationBadge}>
+          <View style={[styles.recommendationBadge, { backgroundColor: getRecommendationColor() + '20' }]}>
             <Ionicons 
               name={post.recommendation_type === 'recommend' ? 'thumbs-up' : 'thumbs-down'} 
               size={16} 
@@ -160,7 +175,7 @@ export default function PostCard({ post, onLike }: PostCardProps) {
           </View>
           
           <View style={styles.actionBadge}>
-            <Ionicons name={getActionIcon()} size={16} color="#007AFF" />
+            <Ionicons name={getActionIcon()} size={16} color={theme.primary} />
             <Text style={styles.actionText}>{post.action_type}</Text>
           </View>
         </View>
@@ -182,7 +197,7 @@ export default function PostCard({ post, onLike }: PostCardProps) {
         {/* External Link */}
         {post.external_link && (
           <TouchableOpacity style={styles.linkButton} onPress={handleExternalLink}>
-            <Ionicons name="link-outline" size={16} color="#007AFF" />
+            <Ionicons name="link-outline" size={16} color={theme.primary} />
             <Text style={styles.linkText}>View Link</Text>
           </TouchableOpacity>
         )}
@@ -198,34 +213,34 @@ export default function PostCard({ post, onLike }: PostCardProps) {
           <Ionicons 
             name={liked ? 'heart' : 'heart-outline'} 
             size={20} 
-            color={liked ? '#FF3B30' : '#8E8E93'} 
+            color={liked ? theme.error : theme.textSecondary} 
           />
-          <Text style={[styles.actionCount, liked && styles.actionCountLiked]}>
-            {post.like_count}
+          <Text style={[styles.actionCount, liked && { color: theme.error }]}>
+            {post.like_count + (liked ? 1 : 0)}
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionButton}>
-          <Ionicons name="chatbubble-outline" size={20} color="#8E8E93" />
+        <TouchableOpacity style={styles.actionButton} onPress={handleComment}>
+          <Ionicons name="chatbubble-outline" size={20} color={theme.textSecondary} />
           <Text style={styles.actionCount}>{post.comment_count}</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionButton}>
-          <Ionicons name="repeat-outline" size={20} color="#8E8E93" />
+        <TouchableOpacity style={styles.actionButton} onPress={handleRepost}>
+          <Ionicons name="repeat-outline" size={20} color={theme.textSecondary} />
           <Text style={styles.actionCount}>{post.repost_count}</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionButton}>
-          <Ionicons name="share-outline" size={20} color="#8E8E93" />
+        <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
+          <Ionicons name="share-outline" size={20} color={theme.textSecondary} />
         </TouchableOpacity>
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
   container: {
-    backgroundColor: '#1C1C1E',
+    backgroundColor: theme.surface,
     marginHorizontal: 16,
     marginVertical: 8,
     borderRadius: 12,
@@ -250,7 +265,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   avatarPlaceholder: {
-    backgroundColor: '#2C2C2E',
+    backgroundColor: theme.surfaceSecondary,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -260,7 +275,7 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: theme.text,
   },
   metaInfo: {
     flexDirection: 'row',
@@ -269,21 +284,21 @@ const styles = StyleSheet.create({
   },
   username: {
     fontSize: 14,
-    color: '#8E8E93',
+    color: theme.textSecondary,
   },
   separator: {
     fontSize: 14,
-    color: '#8E8E93',
+    color: theme.textSecondary,
     marginHorizontal: 6,
   },
   timestamp: {
     fontSize: 14,
-    color: '#8E8E93',
+    color: theme.textSecondary,
   },
   roomBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#2C2C2E',
+    backgroundColor: theme.surfaceSecondary,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
@@ -296,7 +311,7 @@ const styles = StyleSheet.create({
   },
   roomName: {
     fontSize: 12,
-    color: '#FFFFFF',
+    color: theme.text,
     fontWeight: '500',
   },
   mediaContainer: {
@@ -318,7 +333,6 @@ const styles = StyleSheet.create({
   recommendationBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(52, 199, 89, 0.1)',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
@@ -331,14 +345,14 @@ const styles = StyleSheet.create({
   actionBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    backgroundColor: theme.primary + '20',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
   },
   actionText: {
     fontSize: 12,
-    color: '#007AFF',
+    color: theme.primary,
     fontWeight: '500',
     marginLeft: 4,
     textTransform: 'capitalize',
@@ -346,12 +360,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: theme.text,
     marginBottom: 8,
   },
   description: {
     fontSize: 16,
-    color: '#FFFFFF',
+    color: theme.text,
     lineHeight: 22,
     marginBottom: 12,
   },
@@ -361,7 +375,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   tag: {
-    backgroundColor: '#2C2C2E',
+    backgroundColor: theme.surfaceSecondary,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
@@ -370,13 +384,13 @@ const styles = StyleSheet.create({
   },
   tagText: {
     fontSize: 12,
-    color: '#007AFF',
+    color: theme.primary,
     fontWeight: '500',
   },
   linkButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    backgroundColor: theme.primary + '20',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
@@ -384,7 +398,7 @@ const styles = StyleSheet.create({
   },
   linkText: {
     fontSize: 14,
-    color: '#007AFF',
+    color: theme.primary,
     fontWeight: '500',
     marginLeft: 6,
   },
@@ -394,7 +408,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderTopWidth: 1,
-    borderTopColor: '#2C2C2E',
+    borderTopColor: theme.border,
   },
   actionButton: {
     flexDirection: 'row',
@@ -403,11 +417,8 @@ const styles = StyleSheet.create({
   },
   actionCount: {
     fontSize: 14,
-    color: '#8E8E93',
+    color: theme.textSecondary,
     marginLeft: 6,
     fontWeight: '500',
-  },
-  actionCountLiked: {
-    color: '#FF3B30',
   },
 });
