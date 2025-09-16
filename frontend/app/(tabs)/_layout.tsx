@@ -1,24 +1,27 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useThemeStore } from '../../store/themeStore';
 
 export default function TabLayout() {
+  const { theme } = useThemeStore();
+
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#007AFF',
-        tabBarInactiveTintColor: '#8E8E93',
+        tabBarActiveTintColor: theme.primary,
+        tabBarInactiveTintColor: theme.textSecondary,
         tabBarStyle: {
-          backgroundColor: '#1C1C1E',
-          borderTopColor: '#2C2C2E',
+          backgroundColor: theme.surface,
+          borderTopColor: theme.border,
           height: 85,
           paddingTop: 8,
           paddingBottom: 25,
         },
         headerStyle: {
-          backgroundColor: '#000000',
+          backgroundColor: theme.background,
         },
-        headerTintColor: '#FFFFFF',
+        headerTintColor: theme.text,
         headerTitleStyle: {
           fontWeight: 'bold',
         },
@@ -48,7 +51,7 @@ export default function TabLayout() {
         options={{
           title: '',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="add-circle" size={32} color="#007AFF" />
+            <Ionicons name="add-circle" size={32} color={theme.primary} />
           ),
         }}
         listeners={{
