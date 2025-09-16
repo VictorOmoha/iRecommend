@@ -292,4 +292,4 @@
 
 ## agent_communication:
     - agent: "main"
-    - message: "Completed Phase 2 - Core Recommendation System. Extended backend with complete post management, social features, and follow system. Frontend now has full navigation, room management, post creation with image upload, and Instagram-style feed. All major UI components implemented with proper mobile UX. Ready for comprehensive testing of new features."
+    - message: "ISSUE RESOLVED: Fixed mock posts display problem on feed screen. The issue was in the authentication flow - posts were being loaded but the routing logic wasn't properly handling demo access. Implemented 'View Demo' functionality that allows users to see mock posts without authentication. Feed now displays 5 mock posts with full PostCard components including user avatars, like/comment counts, room badges, and proper styling. Authentication flow also restored with proper routing between login/register and main app screens."
