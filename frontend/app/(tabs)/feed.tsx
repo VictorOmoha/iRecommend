@@ -9,6 +9,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { useAuthStore } from '../../store/authStore';
+import { useThemeStore } from '../../store/themeStore';
 import PostCard from '../../components/PostCard';
 
 const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
@@ -42,6 +43,7 @@ interface Post {
 
 export default function FeedScreen() {
   const { user } = useAuthStore();
+  const { theme } = useThemeStore();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -92,11 +94,13 @@ export default function FeedScreen() {
     />
   );
 
+  const styles = createStyles(theme);
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color={theme.primary} />
           <Text style={styles.loadingText}>Loading feed...</Text>
         </View>
       </SafeAreaView>
@@ -121,7 +125,7 @@ export default function FeedScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor="#007AFF"
+              tintColor={theme.primary}
             />
           }
           showsVerticalScrollIndicator={false}
@@ -132,10 +136,10 @@ export default function FeedScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: theme.background,
   },
   loadingContainer: {
     flex: 1,
@@ -143,7 +147,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    color: '#FFFFFF',
+    color: theme.text,
     fontSize: 16,
     marginTop: 16,
   },
@@ -156,13 +160,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: theme.text,
     marginBottom: 16,
     textAlign: 'center',
   },
   emptyDescription: {
     fontSize: 16,
-    color: '#8E8E93',
+    color: theme.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
   },

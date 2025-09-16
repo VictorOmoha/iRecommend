@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuthStore } from '../../store/authStore';
+import { useThemeStore } from '../../store/themeStore';
 
 const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -25,6 +26,7 @@ interface Room {
 
 export default function RoomsScreen() {
   const { user } = useAuthStore();
+  const { theme } = useThemeStore();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -76,16 +78,18 @@ export default function RoomsScreen() {
         <Text style={styles.postCount}>
           {item.post_count} {item.post_count === 1 ? 'post' : 'posts'}
         </Text>
-        <Ionicons name="chevron-forward" size={20} color="#8E8E93" />
+        <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
       </View>
     </TouchableOpacity>
   );
+
+  const styles = createStyles(theme);
 
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color={theme.primary} />
           <Text style={styles.loadingText}>Loading rooms...</Text>
         </View>
       </SafeAreaView>
@@ -100,13 +104,13 @@ export default function RoomsScreen() {
           style={styles.createButton}
           onPress={() => router.push('/create-room')}
         >
-          <Ionicons name="add" size={24} color="#007AFF" />
+          <Ionicons name="add" size={24} color={theme.primary} />
         </TouchableOpacity>
       </View>
 
       {rooms.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Ionicons name="grid-outline" size={64} color="#8E8E93" />
+          <Ionicons name="grid-outline" size={64} color={theme.textSecondary} />
           <Text style={styles.emptyTitle}>No rooms yet</Text>
           <Text style={styles.emptyDescription}>
             Create your first room to organize your recommendations by category.
@@ -127,7 +131,7 @@ export default function RoomsScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor="#007AFF"
+              tintColor={theme.primary}
             />
           }
           showsVerticalScrollIndicator={false}
@@ -138,10 +142,10 @@ export default function RoomsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: theme.background,
   },
   header: {
     flexDirection: 'row',
@@ -150,12 +154,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#2C2C2E',
+    borderBottomColor: theme.border,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: theme.text,
   },
   createButton: {
     padding: 8,
@@ -166,7 +170,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    color: '#FFFFFF',
+    color: theme.text,
     fontSize: 16,
     marginTop: 16,
   },
@@ -179,20 +183,20 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: theme.text,
     marginTop: 16,
     marginBottom: 8,
     textAlign: 'center',
   },
   emptyDescription: {
     fontSize: 16,
-    color: '#8E8E93',
+    color: theme.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 24,
   },
   emptyCreateButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: theme.primary,
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
@@ -206,7 +210,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   roomCard: {
-    backgroundColor: '#1C1C1E',
+    backgroundColor: theme.surface,
     marginHorizontal: 16,
     marginVertical: 4,
     borderRadius: 12,
@@ -230,7 +234,7 @@ const styles = StyleSheet.create({
   roomName: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: theme.text,
     flex: 1,
   },
   roomStats: {
@@ -239,7 +243,7 @@ const styles = StyleSheet.create({
   },
   postCount: {
     fontSize: 14,
-    color: '#8E8E93',
+    color: theme.textSecondary,
     marginRight: 8,
   },
 });
