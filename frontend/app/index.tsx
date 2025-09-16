@@ -32,7 +32,14 @@ export default function Index() {
   const { theme, isDarkMode } = useThemeStore();
 
   useEffect(() => {
+    // Simple timeout to avoid infinite loading
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 2000);
+
     checkExistingSession();
+
+    return () => clearTimeout(timer);
   }, []);
 
   const checkExistingSession = async () => {
