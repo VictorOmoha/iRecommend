@@ -1,25 +1,55 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { 
   View, 
   Text, 
   StyleSheet, 
   TouchableOpacity, 
   SafeAreaView,
+  ActivityIndicator,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
+import { useAuthStore } from '../store/authStore';
+import { useThemeStore } from '../store/themeStore';
 
-export default function IndexSimple() {
+export default function Index() {
+  const { user, loading } = useAuthStore();
+  const { theme } = useThemeStore();
+
+  useEffect(() => {
+    // If user is authenticated, redirect to main app
+    if (user && !loading) {
+      router.replace('/(tabs)/feed');
+    }
+  }, [user, loading]);
+
   const handleLogin = () => {
     console.log('Login button pressed');
-    router.push('/login');
+    router.push('/(auth)/login');
   };
 
   const handleRegister = () => {
     console.log('Register button pressed');
-    router.push('/register');
+    router.push('/(auth)/register');
   };
 
+  const handleShowDemo = () => {
+    console.log('Show demo pressed');
+    router.push('/(tabs)/feed');
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.primary} />
+          <Text style={[styles.loadingText, { color: theme.text }]}>Loading...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // If user is already authenticated, this won't render due to the redirect above
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="light" />
@@ -60,6 +90,14 @@ export default function IndexSimple() {
             activeOpacity={0.8}
           >
             <Text style={styles.registerButtonText}>Create Account</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.demoButton} 
+            onPress={handleShowDemo}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.demoButtonText}>View Demo</Text>
           </TouchableOpacity>
         </View>
       </View>
