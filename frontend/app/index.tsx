@@ -5,7 +5,8 @@ import {
   StyleSheet, 
   TouchableOpacity, 
   SafeAreaView,
-  ActivityIndicator
+  ActivityIndicator,
+  Alert
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
@@ -28,54 +29,37 @@ interface User {
 
 export default function Index() {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const { theme, isDarkMode } = useThemeStore();
+  const [loading, setLoading] = useState(false); // Start with false to show content immediately
+  const { theme, isDarkMode, initializeTheme } = useThemeStore();
 
   useEffect(() => {
-    // Simple timeout to avoid infinite loading
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 2000);
-
-    checkExistingSession();
-
-    return () => clearTimeout(timer);
+    initializeApp();
   }, []);
 
-  const checkExistingSession = async () => {
+  const initializeApp = async () => {
     try {
-      // Check if user has a stored token
+      // Initialize theme
+      await initializeTheme();
+      
+      // Quick check for existing session
       const token = await AsyncStorage.getItem('access_token');
-      if (!token) {
-        setLoading(false);
-        return;
-      }
-
-      // Verify token with backend
-      const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/auth/me`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const userData = await response.json();
-        setUser(userData);
-        // Redirect to main app if authenticated
+      if (token) {
+        // If we have a token, redirect to main app immediately
         router.replace('/(tabs)/feed');
-        return;
-      } else {
-        // Token is invalid, remove it
-        await AsyncStorage.removeItem('access_token');
       }
     } catch (error) {
-      console.log('No existing session found');
-      await AsyncStorage.removeItem('access_token');
-    } finally {
-      setLoading(false);
+      console.log('App initialization error:', error);
     }
+  };
+
+  const handleLogin = () => {
+    console.log('Navigating to login...');
+    router.push('/login');
+  };
+
+  const handleRegister = () => {
+    console.log('Navigating to register...');
+    router.push('/register');
   };
 
   const styles = createStyles(theme);
@@ -120,14 +104,16 @@ export default function Index() {
         <View style={styles.authButtons}>
           <TouchableOpacity 
             style={styles.loginButton} 
-            onPress={() => router.push('/login')}
+            onPress={handleLogin}
+            activeOpacity={0.8}
           >
             <Text style={styles.loginButtonText}>Login</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
             style={styles.registerButton} 
-            onPress={() => router.push('/register')}
+            onPress={handleRegister}
+            activeOpacity={0.8}
           >
             <Text style={styles.registerButtonText}>Create Account</Text>
           </TouchableOpacity>
