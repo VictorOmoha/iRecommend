@@ -97,6 +97,10 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
     } catch (error) {
       console.error('Error loading theme preference:', error);
       // Keep default theme on error
+      set({
+        isDarkMode: true,
+        theme: darkTheme,
+      });
     }
   },
 }));
