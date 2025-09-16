@@ -323,6 +323,7 @@ def main():
     
     # Run all test suites
     test_health_endpoints()
+    test_database_connectivity()
     test_auth_endpoints()
     test_user_endpoints()
     test_room_endpoints()
