@@ -25,12 +25,12 @@ export default function Index() {
 
   const handleLogin = () => {
     console.log('Login button pressed');
-    router.push('/(auth)/login');
+    router.push('/login');
   };
 
   const handleRegister = () => {
     console.log('Register button pressed');
-    router.push('/(auth)/register');
+    router.push('/register');
   };
 
   const handleShowDemo = () => {
