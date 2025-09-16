@@ -129,19 +129,10 @@ useEffect(() => {
   };
 
   const renderPost = ({ item }: { item: Post }) => {
-    console.log('Rendering post:', item.title);
-    return (
-      <View style={{ backgroundColor: theme.surface, margin: 16, padding: 16, borderRadius: 12 }}>
-        <Text style={{ color: theme.text, fontSize: 18, fontWeight: 'bold' }}>{item.title}</Text>
-        <Text style={{ color: theme.textSecondary, fontSize: 14, marginTop: 4 }}>by @{item.user.username}</Text>
-        <Text style={{ color: theme.text, fontSize: 16, marginTop: 8 }}>{item.description}</Text>
-        <View style={{ flexDirection: 'row', marginTop: 12 }}>
-          <Text style={{ color: theme.textSecondary, marginRight: 16 }}>❤️ {item.like_count}</Text>
-          <Text style={{ color: theme.textSecondary, marginRight: 16 }}>💬 {item.comment_count}</Text>
-          <Text style={{ color: theme.textSecondary }}>🔄 {item.repost_count}</Text>
-        </View>
-      </View>
-    );
+    return <PostCard post={item} onLike={(postId, liked) => {
+      console.log(`Post ${postId} ${liked ? 'liked' : 'unliked'}`);
+      // TODO: Update post like count in state
+    }} />;
   };
 
   const styles = createStyles(theme);
