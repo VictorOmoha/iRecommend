@@ -168,12 +168,6 @@ useEffect(() => {
     );
   }
 
-  console.log('=== RENDER DEBUG ===');
-  console.log('posts.length:', posts.length);
-  console.log('posts:', posts);
-  console.log('loading:', loading);
-  console.log('useMockData:', useMockData);
-
   return (
     <SafeAreaView style={styles.container}>
       {useMockData && (
