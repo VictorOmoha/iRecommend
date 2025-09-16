@@ -466,6 +466,346 @@ async def get_user_rooms(username: str):
         for room in rooms
     ]
 
+# Post endpoints
+@api_router.post("/posts")
+async def create_post(post_data: PostCreate, current_user: User = Depends(get_current_user)):
+    """Create a new post"""
+    # Validate room exists and belongs to user
+    room = await db.rooms.find_one({
+        "_id": ObjectId(post_data.room_id),
+        "user_id": current_user.id
+    })
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found or not owned by user")
+    
+    # Validate title and description length
+    if len(post_data.title) > 80:
+        raise HTTPException(status_code=400, detail="Title must be 80 characters or less")
+    if len(post_data.description) > 280:
+        raise HTTPException(status_code=400, detail="Description must be 280 characters or less")
+    
+    post = Post(
+        user_id=current_user.id,
+        room_id=ObjectId(post_data.room_id),
+        title=post_data.title,
+        description=post_data.description,
+        media=post_data.media,
+        media_type=post_data.media_type,
+        tags=post_data.tags,
+        external_link=post_data.external_link,
+        recommendation_type=post_data.recommendation_type,
+        action_type=post_data.action_type
+    )
+    
+    result = await db.posts.insert_one(post.dict(by_alias=True, exclude={"id"}))
+    post.id = result.inserted_id
+    
+    # Update room post count
+    await db.rooms.update_one(
+        {"_id": ObjectId(post_data.room_id)},
+        {"$inc": {"post_count": 1}}
+    )
+    
+    # Get user info for response
+    user_info = await db.users.find_one({"_id": current_user.id})
+    
+    return {
+        "id": str(post.id),
+        "title": post.title,
+        "description": post.description,
+        "media": post.media,
+        "media_type": post.media_type,
+        "tags": post.tags,
+        "external_link": post.external_link,
+        "recommendation_type": post.recommendation_type,
+        "action_type": post.action_type,
+        "like_count": post.like_count,
+        "comment_count": post.comment_count,
+        "repost_count": post.repost_count,
+        "created_at": post.created_at.isoformat(),
+        "user": {
+            "id": str(user_info["_id"]),
+            "name": user_info["name"],
+            "username": user_info["username"],
+            "avatar": user_info["avatar"]
+        },
+        "room": {
+            "id": str(room["_id"]),
+            "name": room["name"],
+            "color": room["color"]
+        }
+    }
+
+@api_router.get("/posts/{post_id}")
+async def get_post(post_id: str):
+    """Get a specific post by ID"""
+    if not ObjectId.is_valid(post_id):
+        raise HTTPException(status_code=400, detail="Invalid post ID")
+    
+    post = await db.posts.find_one({"_id": ObjectId(post_id)})
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    
+    # Get user and room info
+    user_info = await db.users.find_one({"_id": post["user_id"]})
+    room_info = await db.rooms.find_one({"_id": post["room_id"]})
+    
+    return {
+        "id": str(post["_id"]),
+        "title": post["title"],
+        "description": post["description"],
+        "media": post["media"],
+        "media_type": post["media_type"],
+        "tags": post["tags"],
+        "external_link": post["external_link"],
+        "recommendation_type": post["recommendation_type"],
+        "action_type": post["action_type"],
+        "like_count": post["like_count"],
+        "comment_count": post["comment_count"],
+        "repost_count": post["repost_count"],
+        "created_at": post["created_at"].isoformat(),
+        "user": {
+            "id": str(user_info["_id"]),
+            "name": user_info["name"],
+            "username": user_info["username"],
+            "avatar": user_info["avatar"]
+        },
+        "room": {
+            "id": str(room_info["_id"]),
+            "name": room_info["name"],
+            "color": room_info["color"]
+        }
+    }
+
+@api_router.get("/posts")
+async def get_posts(skip: int = 0, limit: int = 20, room_id: Optional[str] = None, username: Optional[str] = None):
+    """Get posts with optional filters"""
+    query = {}
+    
+    if room_id:
+        if not ObjectId.is_valid(room_id):
+            raise HTTPException(status_code=400, detail="Invalid room ID")
+        query["room_id"] = ObjectId(room_id)
+    
+    if username:
+        user = await db.users.find_one({"username": username})
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        query["user_id"] = user["_id"]
+    
+    posts = await db.posts.find(query).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    
+    # Get user and room info for each post
+    result = []
+    for post in posts:
+        user_info = await db.users.find_one({"_id": post["user_id"]})
+        room_info = await db.rooms.find_one({"_id": post["room_id"]})
+        
+        result.append({
+            "id": str(post["_id"]),
+            "title": post["title"],
+            "description": post["description"],
+            "media": post["media"],
+            "media_type": post["media_type"],
+            "tags": post["tags"],
+            "external_link": post["external_link"],
+            "recommendation_type": post["recommendation_type"],
+            "action_type": post["action_type"],
+            "like_count": post["like_count"],
+            "comment_count": post["comment_count"],
+            "repost_count": post["repost_count"],
+            "created_at": post["created_at"].isoformat(),
+            "user": {
+                "id": str(user_info["_id"]),
+                "name": user_info["name"],
+                "username": user_info["username"],
+                "avatar": user_info["avatar"]
+            },
+            "room": {
+                "id": str(room_info["_id"]),
+                "name": room_info["name"],
+                "color": room_info["color"]
+            }
+        })
+    
+    return result
+
+@api_router.post("/posts/{post_id}/like")
+async def like_post(post_id: str, current_user: User = Depends(get_current_user)):
+    """Like or unlike a post"""
+    if not ObjectId.is_valid(post_id):
+        raise HTTPException(status_code=400, detail="Invalid post ID")
+    
+    post = await db.posts.find_one({"_id": ObjectId(post_id)})
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    
+    # Check if user already liked the post
+    existing_like = await db.likes.find_one({
+        "user_id": current_user.id,
+        "post_id": ObjectId(post_id)
+    })
+    
+    if existing_like:
+        # Unlike the post
+        await db.likes.delete_one({"_id": existing_like["_id"]})
+        await db.posts.update_one(
+            {"_id": ObjectId(post_id)},
+            {"$inc": {"like_count": -1}}
+        )
+        liked = False
+    else:
+        # Like the post
+        like = Like(
+            user_id=current_user.id,
+            post_id=ObjectId(post_id)
+        )
+        await db.likes.insert_one(like.dict(by_alias=True, exclude={"id"}))
+        await db.posts.update_one(
+            {"_id": ObjectId(post_id)},
+            {"$inc": {"like_count": 1}}
+        )
+        liked = True
+    
+    # Get updated like count
+    updated_post = await db.posts.find_one({"_id": ObjectId(post_id)})
+    
+    return {
+        "liked": liked,
+        "like_count": updated_post["like_count"]
+    }
+
+@api_router.post("/posts/{post_id}/comments")
+async def create_comment(post_id: str, comment_data: CommentCreate, current_user: User = Depends(get_current_user)):
+    """Create a comment on a post"""
+    if not ObjectId.is_valid(post_id):
+        raise HTTPException(status_code=400, detail="Invalid post ID")
+    
+    post = await db.posts.find_one({"_id": ObjectId(post_id)})
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    
+    comment = Comment(
+        user_id=current_user.id,
+        post_id=ObjectId(post_id),
+        content=comment_data.content
+    )
+    
+    result = await db.comments.insert_one(comment.dict(by_alias=True, exclude={"id"}))
+    comment.id = result.inserted_id
+    
+    # Update post comment count
+    await db.posts.update_one(
+        {"_id": ObjectId(post_id)},
+        {"$inc": {"comment_count": 1}}
+    )
+    
+    return {
+        "id": str(comment.id),
+        "content": comment.content,
+        "created_at": comment.created_at.isoformat(),
+        "user": {
+            "id": str(current_user.id),
+            "name": current_user.name,
+            "username": current_user.username,
+            "avatar": current_user.avatar
+        }
+    }
+
+@api_router.get("/posts/{post_id}/comments")
+async def get_post_comments(post_id: str, skip: int = 0, limit: int = 50):
+    """Get comments for a post"""
+    if not ObjectId.is_valid(post_id):
+        raise HTTPException(status_code=400, detail="Invalid post ID")
+    
+    comments = await db.comments.find({
+        "post_id": ObjectId(post_id)
+    }).sort("created_at", 1).skip(skip).limit(limit).to_list(limit)
+    
+    result = []
+    for comment in comments:
+        user_info = await db.users.find_one({"_id": comment["user_id"]})
+        result.append({
+            "id": str(comment["_id"]),
+            "content": comment["content"],
+            "created_at": comment["created_at"].isoformat(),
+            "user": {
+                "id": str(user_info["_id"]),
+                "name": user_info["name"],
+                "username": user_info["username"],
+                "avatar": user_info["avatar"]
+            }
+        })
+    
+    return result
+
+# Follow/Unfollow endpoints
+@api_router.post("/users/{username}/follow")
+async def follow_user(username: str, current_user: User = Depends(get_current_user)):
+    """Follow or unfollow a user"""
+    target_user = await db.users.find_one({"username": username})
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if target_user["_id"] == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot follow yourself")
+    
+    # Check if already following
+    existing_follow = await db.follows.find_one({
+        "follower_id": current_user.id,
+        "following_id": target_user["_id"]
+    })
+    
+    if existing_follow:
+        # Unfollow
+        await db.follows.delete_one({"_id": existing_follow["_id"]})
+        # Update counts
+        await db.users.update_one(
+            {"_id": current_user.id},
+            {"$inc": {"following_count": -1}}
+        )
+        await db.users.update_one(
+            {"_id": target_user["_id"]},
+            {"$inc": {"follower_count": -1}}
+        )
+        following = False
+    else:
+        # Follow
+        follow = Follow(
+            follower_id=current_user.id,
+            following_id=target_user["_id"]
+        )
+        await db.follows.insert_one(follow.dict(by_alias=True, exclude={"id"}))
+        # Update counts
+        await db.users.update_one(
+            {"_id": current_user.id},
+            {"$inc": {"following_count": 1}}
+        )
+        await db.users.update_one(
+            {"_id": target_user["_id"]},
+            {"$inc": {"follower_count": 1}}
+        )
+        following = True
+    
+    return {"following": following}
+
+@api_router.get("/users/{username}/following-status")
+async def get_following_status(username: str, current_user: User = Depends(get_current_user)):
+    """Check if current user is following the specified user"""
+    target_user = await db.users.find_one({"username": username})
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if target_user["_id"] == current_user.id:
+        return {"following": False, "is_self": True}
+    
+    follow = await db.follows.find_one({
+        "follower_id": current_user.id,
+        "following_id": target_user["_id"]
+    })
+    
+    return {"following": bool(follow), "is_self": False}
+
 # Basic health check
 @api_router.get("/")
 async def root():
