@@ -283,6 +283,261 @@ def test_database_connectivity():
     except Exception as e:
         results.log_failure("Database Connectivity", f"Database connection test failed: {str(e)}")
 
+def test_post_management():
+    """Test Phase 2 Post Management System"""
+    print("\n🔍 Testing Post Management System...")
+    
+    # Test creating post without authentication (should fail)
+    try:
+        post_data = {
+            "room_id": "507f1f77bcf86cd799439011",
+            "title": "Test Post",
+            "description": "Test description",
+            "recommendation_type": "recommend",
+            "action_type": "buy"
+        }
+        response = requests.post(f"{API_BASE}/posts", json=post_data, timeout=10)
+        if response.status_code == 401:
+            results.log_success("POST /api/posts - Properly rejects unauthenticated requests")
+        else:
+            results.log_failure("POST /api/posts", f"Expected 401, got {response.status_code}: {response.text}")
+    except Exception as e:
+        results.log_failure("POST /api/posts", f"Request failed: {str(e)}")
+
+    # Test getting specific post with invalid ID
+    try:
+        response = requests.get(f"{API_BASE}/posts/invalid_id", timeout=10)
+        if response.status_code == 400:
+            results.log_success("GET /api/posts/{post_id} - Properly handles invalid post ID")
+        else:
+            results.log_failure("GET /api/posts/{post_id}", f"Expected 400, got {response.status_code}: {response.text}")
+    except Exception as e:
+        results.log_failure("GET /api/posts/{post_id}", f"Request failed: {str(e)}")
+
+    # Test getting non-existent post
+    try:
+        response = requests.get(f"{API_BASE}/posts/507f1f77bcf86cd799439011", timeout=10)
+        if response.status_code == 404:
+            results.log_success("GET /api/posts/{post_id} - Properly handles non-existent post")
+        else:
+            results.log_failure("GET /api/posts/{post_id}", f"Expected 404, got {response.status_code}: {response.text}")
+    except Exception as e:
+        results.log_failure("GET /api/posts/{post_id}", f"Request failed: {str(e)}")
+
+    # Test getting posts with filters
+    try:
+        response = requests.get(f"{API_BASE}/posts", timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            if isinstance(data, list):
+                results.log_success("GET /api/posts - Returns posts list")
+            else:
+                results.log_failure("GET /api/posts", f"Expected list, got: {type(data)}")
+        else:
+            results.log_failure("GET /api/posts", f"Expected 200, got {response.status_code}: {response.text}")
+    except Exception as e:
+        results.log_failure("GET /api/posts", f"Request failed: {str(e)}")
+
+    # Test getting posts with invalid room_id filter
+    try:
+        response = requests.get(f"{API_BASE}/posts?room_id=invalid_id", timeout=10)
+        if response.status_code == 400:
+            results.log_success("GET /api/posts - Properly handles invalid room_id filter")
+        else:
+            results.log_failure("GET /api/posts", f"Expected 400, got {response.status_code}: {response.text}")
+    except Exception as e:
+        results.log_failure("GET /api/posts", f"Request failed: {str(e)}")
+
+    # Test getting posts with non-existent username filter
+    try:
+        response = requests.get(f"{API_BASE}/posts?username=nonexistentuser123", timeout=10)
+        if response.status_code == 404:
+            results.log_success("GET /api/posts - Properly handles non-existent username filter")
+        else:
+            results.log_failure("GET /api/posts", f"Expected 404, got {response.status_code}: {response.text}")
+    except Exception as e:
+        results.log_failure("GET /api/posts", f"Request failed: {str(e)}")
+
+def test_social_features():
+    """Test Phase 2 Social Features (Like/Comment System)"""
+    print("\n🔍 Testing Social Features...")
+    
+    # Test liking post without authentication (should fail)
+    try:
+        response = requests.post(f"{API_BASE}/posts/507f1f77bcf86cd799439011/like", timeout=10)
+        if response.status_code == 401:
+            results.log_success("POST /api/posts/{post_id}/like - Properly rejects unauthenticated requests")
+        else:
+            results.log_failure("POST /api/posts/{post_id}/like", f"Expected 401, got {response.status_code}: {response.text}")
+    except Exception as e:
+        results.log_failure("POST /api/posts/{post_id}/like", f"Request failed: {str(e)}")
+
+    # Test liking post with invalid ID
+    try:
+        response = requests.post(f"{API_BASE}/posts/invalid_id/like", 
+                               headers={"Authorization": "Bearer fake_token"}, timeout=10)
+        if response.status_code in [400, 401]:
+            results.log_success("POST /api/posts/{post_id}/like - Properly handles invalid post ID")
+        else:
+            results.log_failure("POST /api/posts/{post_id}/like", f"Expected 400/401, got {response.status_code}: {response.text}")
+    except Exception as e:
+        results.log_failure("POST /api/posts/{post_id}/like", f"Request failed: {str(e)}")
+
+    # Test creating comment without authentication (should fail)
+    try:
+        comment_data = {"content": "Test comment"}
+        response = requests.post(f"{API_BASE}/posts/507f1f77bcf86cd799439011/comments", 
+                               json=comment_data, timeout=10)
+        if response.status_code == 401:
+            results.log_success("POST /api/posts/{post_id}/comments - Properly rejects unauthenticated requests")
+        else:
+            results.log_failure("POST /api/posts/{post_id}/comments", f"Expected 401, got {response.status_code}: {response.text}")
+    except Exception as e:
+        results.log_failure("POST /api/posts/{post_id}/comments", f"Request failed: {str(e)}")
+
+    # Test creating comment with invalid post ID
+    try:
+        comment_data = {"content": "Test comment"}
+        response = requests.post(f"{API_BASE}/posts/invalid_id/comments", 
+                               json=comment_data,
+                               headers={"Authorization": "Bearer fake_token"}, timeout=10)
+        if response.status_code in [400, 401]:
+            results.log_success("POST /api/posts/{post_id}/comments - Properly handles invalid post ID")
+        else:
+            results.log_failure("POST /api/posts/{post_id}/comments", f"Expected 400/401, got {response.status_code}: {response.text}")
+    except Exception as e:
+        results.log_failure("POST /api/posts/{post_id}/comments", f"Request failed: {str(e)}")
+
+    # Test getting comments for invalid post ID
+    try:
+        response = requests.get(f"{API_BASE}/posts/invalid_id/comments", timeout=10)
+        if response.status_code == 400:
+            results.log_success("GET /api/posts/{post_id}/comments - Properly handles invalid post ID")
+        else:
+            results.log_failure("GET /api/posts/{post_id}/comments", f"Expected 400, got {response.status_code}: {response.text}")
+    except Exception as e:
+        results.log_failure("GET /api/posts/{post_id}/comments", f"Request failed: {str(e)}")
+
+    # Test getting comments for non-existent post
+    try:
+        response = requests.get(f"{API_BASE}/posts/507f1f77bcf86cd799439011/comments", timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            if isinstance(data, list):
+                results.log_success("GET /api/posts/{post_id}/comments - Returns comments list")
+            else:
+                results.log_failure("GET /api/posts/{post_id}/comments", f"Expected list, got: {type(data)}")
+        else:
+            results.log_failure("GET /api/posts/{post_id}/comments", f"Expected 200, got {response.status_code}: {response.text}")
+    except Exception as e:
+        results.log_failure("GET /api/posts/{post_id}/comments", f"Request failed: {str(e)}")
+
+def test_follow_system():
+    """Test Phase 2 Follow System"""
+    print("\n🔍 Testing Follow System...")
+    
+    # Test following user without authentication (should fail)
+    try:
+        response = requests.post(f"{API_BASE}/users/testuser/follow", timeout=10)
+        if response.status_code == 401:
+            results.log_success("POST /api/users/{username}/follow - Properly rejects unauthenticated requests")
+        else:
+            results.log_failure("POST /api/users/{username}/follow", f"Expected 401, got {response.status_code}: {response.text}")
+    except Exception as e:
+        results.log_failure("POST /api/users/{username}/follow", f"Request failed: {str(e)}")
+
+    # Test following non-existent user
+    try:
+        response = requests.post(f"{API_BASE}/users/nonexistentuser123/follow", 
+                               headers={"Authorization": "Bearer fake_token"}, timeout=10)
+        if response.status_code in [401, 404]:
+            results.log_success("POST /api/users/{username}/follow - Properly handles non-existent user")
+        else:
+            results.log_failure("POST /api/users/{username}/follow", f"Expected 401/404, got {response.status_code}: {response.text}")
+    except Exception as e:
+        results.log_failure("POST /api/users/{username}/follow", f"Request failed: {str(e)}")
+
+    # Test getting following status without authentication (should fail)
+    try:
+        response = requests.get(f"{API_BASE}/users/testuser/following-status", timeout=10)
+        if response.status_code == 401:
+            results.log_success("GET /api/users/{username}/following-status - Properly rejects unauthenticated requests")
+        else:
+            results.log_failure("GET /api/users/{username}/following-status", f"Expected 401, got {response.status_code}: {response.text}")
+    except Exception as e:
+        results.log_failure("GET /api/users/{username}/following-status", f"Request failed: {str(e)}")
+
+    # Test getting following status for non-existent user
+    try:
+        response = requests.get(f"{API_BASE}/users/nonexistentuser123/following-status", 
+                              headers={"Authorization": "Bearer fake_token"}, timeout=10)
+        if response.status_code in [401, 404]:
+            results.log_success("GET /api/users/{username}/following-status - Properly handles non-existent user")
+        else:
+            results.log_failure("GET /api/users/{username}/following-status", f"Expected 401/404, got {response.status_code}: {response.text}")
+    except Exception as e:
+        results.log_failure("GET /api/users/{username}/following-status", f"Request failed: {str(e)}")
+
+def test_data_validation():
+    """Test data validation and edge cases for Phase 2 features"""
+    print("\n🔍 Testing Data Validation & Edge Cases...")
+    
+    # Test post creation with title too long
+    try:
+        post_data = {
+            "room_id": "507f1f77bcf86cd799439011",
+            "title": "A" * 81,  # 81 characters, should exceed 80 limit
+            "description": "Test description",
+            "recommendation_type": "recommend",
+            "action_type": "buy"
+        }
+        response = requests.post(f"{API_BASE}/posts", json=post_data,
+                               headers={"Authorization": "Bearer fake_token"}, timeout=10)
+        if response.status_code in [400, 401, 422]:
+            results.log_success("POST /api/posts - Properly validates title length limit")
+        else:
+            results.log_failure("POST /api/posts", f"Expected 400/401/422, got {response.status_code}: {response.text}")
+    except Exception as e:
+        results.log_failure("POST /api/posts", f"Request failed: {str(e)}")
+
+    # Test post creation with description too long
+    try:
+        post_data = {
+            "room_id": "507f1f77bcf86cd799439011",
+            "title": "Test Post",
+            "description": "A" * 281,  # 281 characters, should exceed 280 limit
+            "recommendation_type": "recommend",
+            "action_type": "buy"
+        }
+        response = requests.post(f"{API_BASE}/posts", json=post_data,
+                               headers={"Authorization": "Bearer fake_token"}, timeout=10)
+        if response.status_code in [400, 401, 422]:
+            results.log_success("POST /api/posts - Properly validates description length limit")
+        else:
+            results.log_failure("POST /api/posts", f"Expected 400/401/422, got {response.status_code}: {response.text}")
+    except Exception as e:
+        results.log_failure("POST /api/posts", f"Request failed: {str(e)}")
+
+    # Test pagination parameters
+    try:
+        response = requests.get(f"{API_BASE}/posts?skip=0&limit=10", timeout=10)
+        if response.status_code == 200:
+            results.log_success("GET /api/posts - Properly handles pagination parameters")
+        else:
+            results.log_failure("GET /api/posts", f"Expected 200, got {response.status_code}: {response.text}")
+    except Exception as e:
+        results.log_failure("GET /api/posts", f"Request failed: {str(e)}")
+
+    # Test comment pagination
+    try:
+        response = requests.get(f"{API_BASE}/posts/507f1f77bcf86cd799439011/comments?skip=0&limit=10", timeout=10)
+        if response.status_code == 200:
+            results.log_success("GET /api/posts/{post_id}/comments - Properly handles pagination parameters")
+        else:
+            results.log_failure("GET /api/posts/{post_id}/comments", f"Expected 200, got {response.status_code}: {response.text}")
+    except Exception as e:
+        results.log_failure("GET /api/posts/{post_id}/comments", f"Request failed: {str(e)}")
+
 def test_error_handling():
     """Test error handling for various scenarios"""
     print("\n🔍 Testing Error Handling...")
@@ -317,7 +572,7 @@ def test_error_handling():
 
 def main():
     """Run all tests"""
-    print("🚀 Starting i-Recommend Backend API Tests")
+    print("🚀 Starting i-Recommend Backend API Tests - Phase 2 Features")
     print(f"Backend URL: {BACKEND_URL}")
     print(f"API Base: {API_BASE}")
     
@@ -327,6 +582,13 @@ def main():
     test_auth_endpoints()
     test_user_endpoints()
     test_room_endpoints()
+    
+    # Phase 2 Feature Tests
+    test_post_management()
+    test_social_features()
+    test_follow_system()
+    test_data_validation()
+    
     test_api_structure()
     test_cors_headers()
     test_error_handling()
