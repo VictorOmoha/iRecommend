@@ -55,14 +55,19 @@ export default function FeedScreen() {
   const [error, setError] = useState<string | null>(null);
   const [useMockData, setUseMockData] = useState(false);
 
-  useEffect(() => {
+useEffect(() => {
+    // Always start with mock data for demo
+    console.log('Loading feed... User:', user);
+    console.log('Mock posts length:', mockPosts.length);
+    
+    // Force mock data to show immediately
+    setUseMockData(true);
+    setPosts(mockPosts);
+    setLoading(false);
+    
+    // Still try to load real data if user exists
     if (user) {
       loadPosts();
-    } else {
-      // Show mock data for demo purposes
-      setUseMockData(true);
-      setPosts(mockPosts);
-      setLoading(false);
     }
   }, [user]);
 
